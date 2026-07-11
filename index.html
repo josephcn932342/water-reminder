@@ -424,7 +424,8 @@
       { src: 'album/sana-yeouido-03.webp', position: '50% 40%' },
       { src: 'album/sana-yeouido-04.webp', position: '50% 43%' }
     ];
-    let currentPhoto = photoLibrary[0];
+    let currentPhoto = null;
+    let photoQueue = [];
     let deferredInstallPrompt = null;
 
     async function loadManagedPhotos() {
@@ -433,16 +434,26 @@
         const data = await response.json();
         if (response.ok && Array.isArray(data.photos) && data.photos.length) {
           photoLibrary = data.photos;
-          currentPhoto = photoLibrary[0];
+          photoQueue = [];
         }
       } catch {}
     }
 
+    function refillPhotoQueue() {
+      photoQueue = [...photoLibrary];
+      for (let index = photoQueue.length - 1; index > 0; index -= 1) {
+        const target = Math.floor(Math.random() * (index + 1));
+        [photoQueue[index], photoQueue[target]] = [photoQueue[target], photoQueue[index]];
+      }
+      if (currentPhoto && photoQueue.length > 1 && photoQueue[0].src === currentPhoto.src) {
+        const swapIndex = 1 + Math.floor(Math.random() * (photoQueue.length - 1));
+        [photoQueue[0], photoQueue[swapIndex]] = [photoQueue[swapIndex], photoQueue[0]];
+      }
+    }
+
     function changePhoto(animate = true) {
-      const choices = photoLibrary.filter((item) => item.src !== currentPhoto.src);
-      const next = choices.length
-        ? choices[Math.floor(Math.random() * choices.length)]
-        : photoLibrary[0];
+      if (!photoQueue.length) refillPhotoQueue();
+      const next = photoQueue.shift();
 
       if (!next) return;
 
@@ -671,8 +682,6 @@
       await loadManagedPhotos();
       updateClock();
       showCount(getCount());
-      backdrop.style.backgroundImage = `url("${currentPhoto.src}")`;
-      backdrop.style.backgroundPosition = currentPhoto.position;
       changePhoto(false);
       if (Math.random() > .45) changeReminder();
       window.setInterval(updateClock, 15000);
