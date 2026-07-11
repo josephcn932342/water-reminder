@@ -1,0 +1,7 @@
+worker.js
+wrangler.jsonc
+README.md
+.nojekyll
+**/.git
+**/.github
+**/node_modules
