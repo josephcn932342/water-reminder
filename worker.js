@@ -41,13 +41,7 @@ function isPhotoAdmin(request, env) {
 async function getGallery(env) {
   const listed = await env.REMINDER_KV.list({ prefix: 'gallery:photo:' });
   const photos = (await Promise.all(listed.keys.map(({ name }) => env.REMINDER_KV.get(name, 'json')))).filter(Boolean);
-  const order = await env.REMINDER_KV.get('gallery:order', 'json') || [];
-  const rank = new Map(order.map((id, index) => [id, index]));
-  return photos.sort((a, b) => {
-    const aRank = rank.has(a.id) ? rank.get(a.id) + 1 : 0;
-    const bRank = rank.has(b.id) ? rank.get(b.id) + 1 : 0;
-    return aRank - bRank || b.createdAt.localeCompare(a.createdAt);
-  });
+  return photos.sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.createdAt.localeCompare(a.createdAt));
 }
 
 function safePosition(value) {
@@ -205,18 +199,6 @@ export default {
         env.REMINDER_KV.delete(`gallery:photo:${id}`)
       ]);
       return json({ ok: true });
-    }
-
-    if (url.pathname === '/api/gallery/order' && request.method === 'PUT') {
-      if (!isPhotoAdmin(request, env)) return unauthorized();
-      const { ids = [] } = await request.json().catch(() => ({}));
-      const photos = await getGallery(env);
-      const validIds = new Set(photos.map((photo) => photo.id));
-      const orderedIds = ids.filter((id) => validIds.has(id));
-      photos.forEach((photo) => { if (!orderedIds.includes(photo.id)) orderedIds.push(photo.id); });
-      await env.REMINDER_KV.put('gallery:order', JSON.stringify(orderedIds));
-      const byId = new Map(photos.map((photo) => [photo.id, photo]));
-      return json({ ok: true, photos: orderedIds.map((id) => byId.get(id)).filter(Boolean) });
     }
 
     if (url.pathname === '/api/subscribe' && request.method === 'POST') {
