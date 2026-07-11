@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "water-reminder",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-11",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/admin*"
+    ]
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
+  }
+}

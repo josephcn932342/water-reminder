@@ -1,5 +1,17 @@
 # 寶貝喝水提醒
 
+目前建議直接連接 Cloudflare Workers Builds；Cloudflare 會同時部署靜態網頁與 `worker.js` 後台。
+
+## Cloudflare Git 部署
+
+1. 將此資料夾全部內容上傳到 GitHub repository 根目錄。
+2. 在 Cloudflare 選擇 **Connect GitHub** 並選取該 repository。
+3. Build command 留空。
+4. Deploy command 使用 `npx wrangler deploy`。
+5. Production branch 選擇 `main`。
+
+每次推送到 `main`，Cloudflare 都會自動重新部署。
+
 可直接部署至 GitHub Pages 的靜態 PWA。
 
 ## GitHub Pages
