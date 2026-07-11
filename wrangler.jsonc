@@ -11,6 +11,12 @@
       "/admin*"
     ]
   },
+  "kv_namespaces": [
+    {
+      "binding": "REMINDER_KV",
+      "id": "7fe6b33968b0468ba3ca570491068a48"
+    }
+  ],
   "triggers": {
     "crons": ["* * * * *"]
   }
