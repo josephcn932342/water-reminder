@@ -1,12 +1,11 @@
-const CACHE_NAME = 'hydration-reminder-v8';
+const CACHE_NAME = 'hydration-reminder-v9';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/water-drop.svg',
   './icons/icon-192.png',
-  './icons/icon-512.png',
-  './idol-original.png'
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {

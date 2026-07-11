@@ -344,7 +344,7 @@
     <div class="backdrop" id="backdrop" aria-hidden="true"></div>
 
     <section class="scene" id="scene">
-      <div class="photo-wrap"><img class="photo" id="photo" src="idol-original.png" alt="Sana 單人照片" /></div>
+      <div class="photo-wrap"><img class="photo" id="photo" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="相簿照片" style="opacity:0" /></div>
 
       <div class="topline">
         <button class="icon-button" id="settingsButton" type="button" aria-label="提醒設定" title="提醒設定">♡</button>
@@ -403,27 +403,7 @@
     const settingStatus = document.querySelector('#settingStatus');
     const storageKey = 'water-reminder-count';
     const reminderPhrases = ['喝水~', '補水啦', '喝一口', '水水喔', '潤潤喉', '休息下'];
-    let photoLibrary = [
-      { src: 'idol-original.png', position: '52% 50%' },
-      { src: 'album/sana-dispatch-01.webp', position: '50% 45%' },
-      { src: 'album/sana-dispatch-02.webp', position: '52% 50%' },
-      { src: 'album/sana-dispatch-03.webp', position: '50% 50%' },
-      { src: 'album/sana-dispatch-04.webp', position: '50% 46%' },
-      { src: 'album/sana-dispatch-05.webp', position: '42% 50%' },
-      { src: 'album/sana-pocari-01.webp', position: '50% 42%' },
-      { src: 'album/sana-pocari-02.webp', position: '68% 46%' },
-      { src: 'album/sana-pocari-fansign-01.webp', position: '50% 40%' },
-      { src: 'album/sana-pocari-fansign-02.webp', position: '50% 43%' },
-      { src: 'album/sana-pocari-fansign-03.webp', position: '50% 43%' },
-      { src: 'album/sana-pocari-fansign-04.webp', position: '50% 44%' },
-      { src: 'album/sana-pocari-fansign-05.webp', position: '50% 43%' },
-      { src: 'album/sana-blue-dragon-01.webp', position: '50% 40%' },
-      { src: 'album/sana-blue-dragon-02.webp', position: '48% 42%' },
-      { src: 'album/sana-yeouido-01.webp', position: '50% 38%' },
-      { src: 'album/sana-yeouido-02.webp', position: '50% 42%' },
-      { src: 'album/sana-yeouido-03.webp', position: '50% 40%' },
-      { src: 'album/sana-yeouido-04.webp', position: '50% 43%' }
-    ];
+    let photoLibrary = [];
     let currentPhoto = null;
     let photoQueue = [];
     let deferredInstallPrompt = null;
@@ -432,7 +412,7 @@
       try {
         const response = await fetch('api/photos', { cache: 'no-store' });
         const data = await response.json();
-        if (response.ok && Array.isArray(data.photos) && data.photos.length) {
+        if (response.ok && Array.isArray(data.photos)) {
           photoLibrary = data.photos;
           photoQueue = [];
         }
