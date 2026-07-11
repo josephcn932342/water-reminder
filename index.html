@@ -403,7 +403,7 @@
     const settingStatus = document.querySelector('#settingStatus');
     const storageKey = 'water-reminder-count';
     const reminderPhrases = ['喝水~', '補水啦', '喝一口', '水水喔', '潤潤喉', '休息下'];
-    const photoLibrary = [
+    let photoLibrary = [
       { src: 'idol-original.png', position: '52% 50%' },
       { src: 'album/sana-dispatch-01.webp', position: '50% 45%' },
       { src: 'album/sana-dispatch-02.webp', position: '52% 50%' },
@@ -426,6 +426,17 @@
     ];
     let currentPhoto = photoLibrary[0];
     let deferredInstallPrompt = null;
+
+    async function loadManagedPhotos() {
+      try {
+        const response = await fetch('api/photos', { cache: 'no-store' });
+        const data = await response.json();
+        if (response.ok && Array.isArray(data.photos) && data.photos.length) {
+          photoLibrary = data.photos;
+          currentPhoto = photoLibrary[0];
+        }
+      } catch {}
+    }
 
     function changePhoto(animate = true) {
       const choices = photoLibrary.filter((item) => item.src !== currentPhoto.src);
@@ -542,6 +553,15 @@
     }
 
     function updateNotificationState() {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      if (isIOS && !isStandalone) {
+        notificationButton.textContent = '請先加入主畫面';
+        notificationButton.disabled = true;
+        testNotificationButton.disabled = true;
+        settingStatus.textContent = 'iPhone 請點分享 → 加入主畫面，再從主畫面圖示開啟這個 App。';
+        return;
+      }
       if (!('Notification' in window) || !('serviceWorker' in navigator)) {
         notificationButton.disabled = true;
         testNotificationButton.disabled = true;
@@ -643,13 +663,18 @@
       window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
     }
 
-    updateClock();
-    showCount(getCount());
-    backdrop.style.backgroundImage = 'url("idol-original.png")';
-    backdrop.style.backgroundPosition = currentPhoto.position;
-    changePhoto(false);
-    if (Math.random() > .45) changeReminder();
-    window.setInterval(updateClock, 15000);
+    async function startApp() {
+      await loadManagedPhotos();
+      updateClock();
+      showCount(getCount());
+      backdrop.style.backgroundImage = `url("${currentPhoto.src}")`;
+      backdrop.style.backgroundPosition = currentPhoto.position;
+      changePhoto(false);
+      if (Math.random() > .45) changeReminder();
+      window.setInterval(updateClock, 15000);
+    }
+
+    startApp();
   </script>
 </body>
 </html>

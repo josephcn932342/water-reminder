@@ -8,3 +8,5 @@ README.md
 **/.wrangler
 package.json
 package-lock.json
+bun.lock
+bun.lockb

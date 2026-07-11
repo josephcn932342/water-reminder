@@ -30,6 +30,26 @@ function isAdmin(request, env) {
   return request.headers.get('authorization') === `Bearer ${env.ADMIN_PASSWORD}`;
 }
 
+function isPhotoAdmin(request, env) {
+  const password = request.headers.get('authorization');
+  return Boolean(password) && (
+    (env.PHOTO_PASSWORD && password === `Bearer ${env.PHOTO_PASSWORD}`) ||
+    (env.ADMIN_PASSWORD && password === `Bearer ${env.ADMIN_PASSWORD}`)
+  );
+}
+
+async function getGallery(env) {
+  const listed = await env.REMINDER_KV.list({ prefix: 'gallery:photo:' });
+  const photos = (await Promise.all(listed.keys.map(({ name }) => env.REMINDER_KV.get(name, 'json')))).filter(Boolean);
+  const order = await env.REMINDER_KV.get('gallery:order', 'json') || [];
+  const rank = new Map(order.map((id, index) => [id, index]));
+  return photos.sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER) || a.createdAt.localeCompare(b.createdAt));
+}
+
+function safePosition(value) {
+  return /^(25|50|75)% (20|35|50|65|80)%$/.test(value || '') ? value : '50% 50%';
+}
+
 function validSubscription(value) {
   return value && typeof value.endpoint === 'string' &&
     value.keys && typeof value.keys.p256dh === 'string' && typeof value.keys.auth === 'string';
@@ -114,6 +134,85 @@ export default {
     if (url.pathname === '/api/public-key' && request.method === 'GET') {
       if (!env.VAPID_PUBLIC_KEY) return json({ ok: false, message: '推播金鑰尚未設定' }, { status: 503 });
       return json({ ok: true, publicKey: env.VAPID_PUBLIC_KEY });
+    }
+
+    if (url.pathname === '/api/photos' && request.method === 'GET') {
+      const photos = (await getGallery(env))
+        .filter((photo) => photo.enabled)
+        .map(({ id, position }) => ({ src: `/media/${id}`, position }));
+      return json({ ok: true, photos });
+    }
+
+    if (url.pathname.startsWith('/media/') && request.method === 'GET') {
+      const id = url.pathname.slice('/media/'.length);
+      if (!/^[0-9a-f-]{36}$/.test(id)) return new Response('Not found', { status: 404 });
+      const object = await env.REMINDER_KV.getWithMetadata(`photo:${id}`, 'arrayBuffer');
+      if (!object.value) return new Response('Not found', { status: 404 });
+      const headers = new Headers({ 'content-type': object.metadata?.contentType || 'image/jpeg' });
+      headers.set('cache-control', 'public, max-age=86400');
+      return new Response(object.value, { headers });
+    }
+
+    if (url.pathname === '/api/gallery' && request.method === 'GET') {
+      if (!isPhotoAdmin(request, env)) return unauthorized();
+      return json({ ok: true, photos: await getGallery(env) });
+    }
+
+    if (url.pathname === '/api/gallery/upload' && request.method === 'POST') {
+      if (!isPhotoAdmin(request, env)) return unauthorized();
+      const type = request.headers.get('content-type') || '';
+      const size = Number(request.headers.get('content-length') || 0);
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) {
+        return json({ ok: false, message: '只支援 JPG、PNG 或 WebP' }, { status: 415 });
+      }
+      if (size > 12 * 1024 * 1024) return json({ ok: false, message: '單張圖片不能超過 12 MB' }, { status: 413 });
+      const id = crypto.randomUUID();
+      const name = decodeURIComponent(request.headers.get('x-file-name') || 'photo');
+      const body = await request.arrayBuffer();
+      if (!body.byteLength || body.byteLength > 12 * 1024 * 1024) {
+        return json({ ok: false, message: '圖片大小不正確' }, { status: 400 });
+      }
+      const photo = { id, name: name.slice(0, 120), type, size: body.byteLength, enabled: true, position: '50% 50%', createdAt: new Date().toISOString() };
+      await env.REMINDER_KV.put(`photo:${id}`, body, { metadata: { contentType: type } });
+      await env.REMINDER_KV.put(`gallery:photo:${id}`, JSON.stringify(photo));
+      return json({ ok: true, photo });
+    }
+
+    if (url.pathname.startsWith('/api/gallery/') && request.method === 'PATCH') {
+      if (!isPhotoAdmin(request, env)) return unauthorized();
+      const id = url.pathname.slice('/api/gallery/'.length);
+      const change = await request.json().catch(() => ({}));
+      const photos = await getGallery(env);
+      const photo = photos.find((item) => item.id === id);
+      if (!photo) return json({ ok: false, message: '找不到圖片' }, { status: 404 });
+      if (typeof change.enabled === 'boolean') photo.enabled = change.enabled;
+      if (change.position) photo.position = safePosition(change.position);
+      await env.REMINDER_KV.put(`gallery:photo:${id}`, JSON.stringify(photo));
+      return json({ ok: true, photo });
+    }
+
+    if (url.pathname.startsWith('/api/gallery/') && request.method === 'DELETE') {
+      if (!isPhotoAdmin(request, env)) return unauthorized();
+      const id = url.pathname.slice('/api/gallery/'.length);
+      const photos = await getGallery(env);
+      if (!photos.some((item) => item.id === id)) return json({ ok: false, message: '找不到圖片' }, { status: 404 });
+      await Promise.all([
+        env.REMINDER_KV.delete(`photo:${id}`),
+        env.REMINDER_KV.delete(`gallery:photo:${id}`)
+      ]);
+      return json({ ok: true });
+    }
+
+    if (url.pathname === '/api/gallery/order' && request.method === 'PUT') {
+      if (!isPhotoAdmin(request, env)) return unauthorized();
+      const { ids = [] } = await request.json().catch(() => ({}));
+      const photos = await getGallery(env);
+      const validIds = new Set(photos.map((photo) => photo.id));
+      const orderedIds = ids.filter((id) => validIds.has(id));
+      photos.forEach((photo) => { if (!orderedIds.includes(photo.id)) orderedIds.push(photo.id); });
+      await env.REMINDER_KV.put('gallery:order', JSON.stringify(orderedIds));
+      const byId = new Map(photos.map((photo) => [photo.id, photo]));
+      return json({ ok: true, photos: orderedIds.map((id) => byId.get(id)).filter(Boolean) });
     }
 
     if (url.pathname === '/api/subscribe' && request.method === 'POST') {
