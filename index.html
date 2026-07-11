@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#94d9f5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="喝水提醒" />
+  <title>喝水提醒</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/water-drop.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: light;
+      --mx: 0px;
+      --my: 0px;
+      --blue: #2a9fd2;
+      --deep: #16435a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: "PingFang TC", "Microsoft JhengHei UI", "Noto Sans TC", system-ui, sans-serif;
+      background: #94d9f5;
+    }
+
+    button { font: inherit; }
+
+    .icon-button {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.38);
+      border-radius: 50%;
+      color: white;
+      background: rgba(9,44,64,.28);
+      box-shadow: 0 4px 14px rgba(0,25,42,.12);
+      backdrop-filter: blur(12px);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .icon-button:hover { background: rgba(9,44,64,.42); }
+    .icon-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+
+    .app {
+      position: fixed;
+      inset: 0;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+    }
+
+    .backdrop {
+      position: absolute;
+      z-index: -3;
+      inset: -30px;
+      background: #78c9ea center / cover no-repeat;
+      filter: blur(28px) saturate(.95) brightness(.82);
+      transform: scale(1.12);
+    }
+
+    .backdrop::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(8, 35, 57, .1), rgba(8, 35, 57, .34)),
+        radial-gradient(circle at 50% 32%, transparent 12%, rgba(9, 41, 62, .26) 100%);
+    }
+
+    .scene {
+      position: relative;
+      width: min(430px, 100%);
+      height: min(820px, calc(100dvh - 32px));
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .45);
+      border-radius: clamp(24px, 7vw, 40px);
+      background: #76cff4;
+      box-shadow: 0 28px 70px rgba(3, 34, 55, .42), inset 0 0 0 1px rgba(255,255,255,.12);
+      transform: translate3d(var(--mx), var(--my), 0);
+      transition: transform 500ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .photo-wrap {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      animation: breathe 7s ease-in-out infinite alternate;
+    }
+
+    .photo {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: 52% 50%;
+      transform: scale(1.01);
+      filter: saturate(.96) contrast(1.01);
+      opacity: 1;
+    }
+
+    .scene::after {
+      content: "";
+      pointer-events: none;
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(5,30,50,.05) 0%, transparent 38%, rgba(5,31,51,.12) 62%, rgba(5,31,51,.66) 100%),
+        radial-gradient(ellipse at 52% 28%, transparent 36%, rgba(0,30,52,.10) 100%);
+    }
+
+    .topline {
+      position: absolute;
+      z-index: 5;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-shadow: 0 1px 12px rgba(0,0,0,.45);
+    }
+
+    #clock {
+      min-width: 92px;
+      padding: 7px 12px 8px;
+      border: 1px solid rgba(255,255,255,.38);
+      border-radius: 16px;
+      background: rgba(9,44,64,.28);
+      backdrop-filter: blur(12px);
+      font-family: "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      font-size: clamp(25px, 7vw, 31px);
+      font-weight: 650;
+      line-height: 1;
+      letter-spacing: -.035em;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .content {
+      position: absolute;
+      z-index: 5;
+      left: 27px;
+      right: 27px;
+      bottom: 28px;
+      color: white;
+      text-align: left;
+      animation: arrive 900ms 180ms cubic-bezier(.18,.9,.25,1) both;
+    }
+
+    .bubble {
+      position: relative;
+    }
+
+    h1 {
+      max-width: 340px;
+      margin: 0 0 18px;
+      font-family: "LXGW WenKai TC", "Kaiti TC", "BiauKai", serif;
+      min-height: 46px;
+      font-size: clamp(28px, 8.5vw, 39px);
+      font-weight: 700;
+      line-height: 1.16;
+      letter-spacing: .055em;
+      white-space: nowrap;
+      text-shadow: 0 3px 3px rgba(4,30,47,.38), 0 7px 24px rgba(3,25,42,.66);
+      transform: rotate(-1.2deg);
+    }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 42px;
+    }
+
+    .drink-button {
+      position: relative;
+      width: auto;
+      min-width: 104px;
+      min-height: 40px;
+      padding: 8px 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.6);
+      border-radius: 999px;
+      color: white;
+      background: rgba(7,42,60,.34);
+      box-shadow: 0 6px 18px rgba(0,28,46,.18);
+      backdrop-filter: blur(12px) saturate(1.15);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .drink-button:hover { transform: translateY(-2px); }
+    .drink-button:active { transform: scale(.975); box-shadow: 0 3px 10px rgba(0,28,46,.2); }
+    .drink-button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+
+    .count {
+      min-height: 17px;
+      color: rgba(255,255,255,.82);
+      font-size: 11px;
+      line-height: 1.45;
+      text-shadow: 0 2px 8px rgba(0,25,42,.6);
+    }
+
+    .droplet {
+      position: absolute;
+      z-index: 4;
+      width: var(--size);
+      height: var(--size);
+      left: var(--left);
+      top: 105%;
+      border-radius: 55% 45% 55% 45%;
+      border: 1px solid rgba(255,255,255,.48);
+      background: radial-gradient(circle at 32% 26%, rgba(255,255,255,.8), rgba(159,226,250,.19) 40%, rgba(87,182,224,.12));
+      box-shadow: inset -2px -3px 6px rgba(21,101,139,.14), 0 5px 14px rgba(0,37,59,.15);
+      opacity: 0;
+      pointer-events: none;
+      animation: float-up var(--speed) var(--delay) linear infinite;
+    }
+
+    .ripple {
+      position: fixed;
+      z-index: 20;
+      width: 16px;
+      height: 16px;
+      margin: -8px;
+      border: 2px solid rgba(221,249,255,.9);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: ripple 800ms ease-out forwards;
+    }
+
+    .done .drink-button { color: #126b8d; background: rgba(232,251,255,.96); }
+
+    .sheet-backdrop {
+      position: fixed;
+      z-index: 40;
+      inset: 0;
+      display: grid;
+      align-items: end;
+      padding: 16px;
+      background: rgba(5,28,43,.38);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 220ms ease, visibility 220ms ease;
+    }
+
+    .sheet-backdrop.open { opacity: 1; visibility: visible; }
+
+    .settings-sheet {
+      width: min(430px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.7);
+      border-radius: 28px;
+      color: #173e50;
+      background: rgba(244,252,255,.96);
+      box-shadow: 0 24px 70px rgba(0,28,45,.35);
+      transform: translateY(18px);
+      transition: transform 260ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .sheet-backdrop.open .settings-sheet { transform: translateY(0); }
+
+    .sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .sheet-header h2 { margin: 0; font-size: 20px; }
+    .sheet-header .icon-button { color: #173e50; border-color: rgba(20,74,98,.15); background: rgba(26,132,174,.08); }
+    .sheet-copy { margin: 10px 0 18px; color: #557481; font-size: 13px; line-height: 1.6; }
+    .setting-actions { display: grid; gap: 10px; }
+
+    .setting-button {
+      min-height: 48px;
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 16px;
+      color: white;
+      background: #258fbd;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .setting-button.secondary { color: #21647e; background: #e2f4fa; }
+    .setting-button:disabled { opacity: .48; cursor: default; }
+    .setting-status { min-height: 20px; margin: 12px 2px 0; color: #557481; font-size: 12px; line-height: 1.5; }
+
+    @keyframes breathe {
+      from { transform: scale(1.005) translate3d(-.3%, 0, 0); }
+      to { transform: scale(1.025) translate3d(.3%, -.25%, 0); }
+    }
+
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(22px) scale(.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes float-up {
+      0% { transform: translate3d(0,0,0) rotate(20deg) scale(.8); opacity: 0; }
+      12% { opacity: .65; }
+      85% { opacity: .36; }
+      100% { transform: translate3d(var(--drift), -112vh, 0) rotate(70deg) scale(1.08); opacity: 0; }
+    }
+
+    @keyframes ripple {
+      from { transform: scale(.4); opacity: .95; }
+      to { transform: scale(13); opacity: 0; }
+    }
+
+    @media (min-width: 700px) {
+      .scene { height: min(820px, calc(100dvh - 56px)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+      .scene { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="喝水提醒">
+    <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+
+    <section class="scene" id="scene">
+      <div class="photo-wrap"><img class="photo" id="photo" src="idol-original.png" alt="Sana 單人照片" /></div>
+
+      <div class="topline">
+        <button class="icon-button" id="settingsButton" type="button" aria-label="提醒設定" title="提醒設定">♡</button>
+        <time id="clock">--:--</time>
+      </div>
+
+      <i class="droplet" style="--left:8%;--size:13px;--speed:9s;--delay:-2s;--drift:32px"></i>
+      <i class="droplet" style="--left:22%;--size:8px;--speed:11s;--delay:-7s;--drift:-18px"></i>
+      <i class="droplet" style="--left:74%;--size:14px;--speed:12s;--delay:-4s;--drift:26px"></i>
+      <i class="droplet" style="--left:89%;--size:7px;--speed:10s;--delay:-8s;--drift:-22px"></i>
+      <i class="droplet" style="--left:47%;--size:10px;--speed:13s;--delay:-10s;--drift:15px"></i>
+
+      <div class="content" id="content">
+        <div class="bubble">
+          <h1 id="reminderText">喝水~</h1>
+          <div class="action-row">
+            <button class="drink-button" id="drinkButton" type="button">確認喝水</button>
+            <div class="count" id="count" aria-live="polite"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="sheet-backdrop" id="settingsOverlay" aria-hidden="true">
+    <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="sheet-header">
+        <h2 id="settingsTitle">喝水提醒設定</h2>
+        <button class="icon-button" id="closeSettings" type="button" aria-label="關閉">×</button>
+      </div>
+      <p class="sheet-copy">通知會安靜地出現在 iPhone 或 Windows 的通知區，不會突然蓋住工作畫面。</p>
+      <div class="setting-actions">
+        <button class="setting-button" id="notificationButton" type="button">開啟通知</button>
+        <button class="setting-button secondary" id="testNotificationButton" type="button">傳送測試提醒</button>
+        <button class="setting-button secondary" id="installButton" type="button" hidden>安裝到主畫面</button>
+      </div>
+      <div class="setting-status" id="settingStatus" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <script>
+    const scene = document.querySelector('#scene');
+    const photo = document.querySelector('#photo');
+    const backdrop = document.querySelector('#backdrop');
+    const clock = document.querySelector('#clock');
+    const content = document.querySelector('#content');
+    const button = document.querySelector('#drinkButton');
+    const countLabel = document.querySelector('#count');
+    const reminderText = document.querySelector('#reminderText');
+    const settingsButton = document.querySelector('#settingsButton');
+    const settingsOverlay = document.querySelector('#settingsOverlay');
+    const closeSettings = document.querySelector('#closeSettings');
+    const notificationButton = document.querySelector('#notificationButton');
+    const testNotificationButton = document.querySelector('#testNotificationButton');
+    const installButton = document.querySelector('#installButton');
+    const settingStatus = document.querySelector('#settingStatus');
+    const storageKey = 'water-reminder-count';
+    const reminderPhrases = ['喝水~', '補水啦', '喝一口', '水水喔', '潤潤喉', '休息下'];
+    const photoLibrary = [
+      { src: 'idol-original.png', position: '52% 50%' },
+      { src: 'album/sana-dispatch-01.webp', position: '50% 45%' },
+      { src: 'album/sana-dispatch-02.webp', position: '52% 50%' },
+      { src: 'album/sana-dispatch-03.webp', position: '50% 50%' },
+      { src: 'album/sana-dispatch-04.webp', position: '50% 46%' },
+      { src: 'album/sana-dispatch-05.webp', position: '42% 50%' },
+      { src: 'album/sana-pocari-01.webp', position: '50% 42%' },
+      { src: 'album/sana-pocari-02.webp', position: '68% 46%' },
+      { src: 'album/sana-pocari-fansign-01.webp', position: '50% 40%' },
+      { src: 'album/sana-pocari-fansign-02.webp', position: '50% 43%' },
+      { src: 'album/sana-pocari-fansign-03.webp', position: '50% 43%' },
+      { src: 'album/sana-pocari-fansign-04.webp', position: '50% 44%' },
+      { src: 'album/sana-pocari-fansign-05.webp', position: '50% 43%' },
+      { src: 'album/sana-blue-dragon-01.webp', position: '50% 40%' },
+      { src: 'album/sana-blue-dragon-02.webp', position: '48% 42%' },
+      { src: 'album/sana-yeouido-01.webp', position: '50% 38%' },
+      { src: 'album/sana-yeouido-02.webp', position: '50% 42%' },
+      { src: 'album/sana-yeouido-03.webp', position: '50% 40%' },
+      { src: 'album/sana-yeouido-04.webp', position: '50% 43%' }
+    ];
+    let currentPhoto = photoLibrary[0];
+    let deferredInstallPrompt = null;
+
+    function changePhoto(animate = true) {
+      const choices = photoLibrary.filter((item) => item.src !== currentPhoto.src);
+      const next = choices[Math.floor(Math.random() * choices.length)];
+
+      const applyPhoto = () => {
+        currentPhoto = next;
+        photo.onload = () => {
+          photo.style.opacity = '1';
+          if (animate) {
+            photo.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 520, easing: 'ease-out' });
+          }
+          photo.onload = null;
+        };
+        photo.style.objectPosition = next.position;
+        backdrop.style.backgroundImage = `url("${next.src}")`;
+        backdrop.style.backgroundPosition = next.position;
+        photo.src = next.src;
+        if (photo.complete) photo.onload();
+      };
+
+      if (!animate) {
+        photo.style.opacity = '0';
+        applyPhoto();
+        return;
+      }
+
+      photo.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 240, easing: 'ease-in', fill: 'forwards'
+      }).finished.then(() => {
+        photo.style.opacity = '0';
+        applyPhoto();
+      });
+    }
+
+    function changeReminder() {
+      const choices = reminderPhrases.filter((phrase) => phrase !== reminderText.textContent);
+      reminderText.animate(
+        [{ opacity: 1, transform: 'translateY(0) rotate(-1.2deg)' }, { opacity: 0, transform: 'translateY(-5px) rotate(-1.2deg)' }],
+        { duration: 160, easing: 'ease-in', fill: 'forwards' }
+      ).finished.then(() => {
+        reminderText.textContent = choices[Math.floor(Math.random() * choices.length)];
+        reminderText.animate(
+          [{ opacity: 0, transform: 'translateY(6px) rotate(-1.2deg)' }, { opacity: 1, transform: 'translateY(0) rotate(-1.2deg)' }],
+          { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+        );
+      });
+    }
+
+    function updateClock() {
+      clock.textContent = new Intl.DateTimeFormat('zh-TW', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).format(new Date());
+    }
+
+    function setParallax(x, y) {
+      const dx = Math.max(-1, Math.min(1, x)) * 3;
+      const dy = Math.max(-1, Math.min(1, y)) * 3;
+      scene.style.setProperty('--mx', `${dx}px`);
+      scene.style.setProperty('--my', `${dy}px`);
+    }
+
+    window.addEventListener('pointermove', (event) => {
+      setParallax(event.clientX / innerWidth * 2 - 1, event.clientY / innerHeight * 2 - 1);
+    }, { passive: true });
+
+    window.addEventListener('deviceorientation', (event) => {
+      if (event.gamma == null || event.beta == null) return;
+      setParallax(event.gamma / 25, (event.beta - 45) / 35);
+    }, { passive: true });
+
+    function getCount() {
+      try { return Number(localStorage.getItem(storageKey)) || 0; }
+      catch { return 0; }
+    }
+
+    function showCount(value) {
+      countLabel.textContent = value ? `今天已經完成 ${value} 次喝水提醒` : '今天的第一杯，從現在開始';
+    }
+
+    button.addEventListener('click', (event) => {
+      const next = getCount() + 1;
+      try { localStorage.setItem(storageKey, String(next)); } catch {}
+      showCount(next);
+      content.classList.add('done');
+      button.textContent = '收到 ♡';
+
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      ripple.style.left = `${event.clientX || innerWidth / 2}px`;
+      ripple.style.top = `${event.clientY || innerHeight / 2}px`;
+      document.body.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+
+      window.setTimeout(() => {
+        button.textContent = '確認喝水';
+        content.classList.remove('done');
+        changeReminder();
+        changePhoto();
+      }, 2200);
+    });
+
+    function openSettings() {
+      settingsOverlay.classList.add('open');
+      settingsOverlay.setAttribute('aria-hidden', 'false');
+      updateNotificationState();
+      closeSettings.focus();
+    }
+
+    function hideSettings() {
+      settingsOverlay.classList.remove('open');
+      settingsOverlay.setAttribute('aria-hidden', 'true');
+      settingsButton.focus();
+    }
+
+    function updateNotificationState() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        notificationButton.disabled = true;
+        testNotificationButton.disabled = true;
+        settingStatus.textContent = '這個瀏覽器不支援網站通知。';
+        return;
+      }
+
+      const permission = Notification.permission;
+      notificationButton.textContent = permission === 'granted' ? '通知已開啟 ✓' : '開啟通知';
+      notificationButton.disabled = permission === 'granted' || permission === 'denied';
+      testNotificationButton.disabled = permission !== 'granted';
+      settingStatus.textContent = permission === 'denied'
+        ? '通知已被封鎖，請到瀏覽器或手機設定中重新允許。'
+        : permission === 'granted'
+          ? '已準備好接收喝水提醒。'
+          : '請先允許通知，再傳送一則測試。';
+    }
+
+    async function enableNotifications() {
+      const permission = await Notification.requestPermission();
+      updateNotificationState();
+      if (permission === 'granted') await showTestNotification();
+    }
+
+    async function showTestNotification() {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('喝水~', {
+        body: '忙完這一小段，記得喝一口水 ♡',
+        icon: 'icons/water-drop.svg',
+        badge: 'icons/water-drop.svg',
+        tag: 'hydration-reminder',
+        renotify: false,
+        data: { url: './?from=notification' }
+      });
+      settingStatus.textContent = '測試提醒已送出，請看看通知區。';
+    }
+
+    settingsButton.addEventListener('click', openSettings);
+    closeSettings.addEventListener('click', hideSettings);
+    settingsOverlay.addEventListener('click', (event) => {
+      if (event.target === settingsOverlay) hideSettings();
+    });
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && settingsOverlay.classList.contains('open')) hideSettings();
+    });
+    notificationButton.addEventListener('click', enableNotifications);
+    testNotificationButton.addEventListener('click', showTestNotification);
+
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      installButton.hidden = false;
+    });
+
+    installButton.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      installButton.hidden = true;
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
+    }
+
+    updateClock();
+    showCount(getCount());
+    backdrop.style.backgroundImage = 'url("idol-original.png")';
+    backdrop.style.backgroundPosition = currentPhoto.position;
+    changePhoto(false);
+    if (Math.random() > .45) changeReminder();
+    window.setInterval(updateClock, 15000);
+  </script>
+</body>
+</html>
