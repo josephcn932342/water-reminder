@@ -563,7 +563,42 @@
     async function enableNotifications() {
       const permission = await Notification.requestPermission();
       updateNotificationState();
-      if (permission === 'granted') await showTestNotification();
+      if (permission === 'granted') {
+        try {
+          await subscribeToPush();
+          await showTestNotification();
+          settingStatus.textContent = '通知已開啟，也已加入自動喝水提醒。';
+        } catch (error) {
+          settingStatus.textContent = error.message || '通知已允許，但自動提醒尚未完成設定。';
+        }
+      }
+    }
+
+    function base64UrlToBytes(value) {
+      const padded = value + '='.repeat((4 - value.length % 4) % 4);
+      const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    }
+
+    async function subscribeToPush() {
+      if (!('PushManager' in window)) throw new Error('這個瀏覽器不支援背景推播。');
+      const keyResponse = await fetch('api/public-key');
+      const keyData = await keyResponse.json();
+      if (!keyResponse.ok) throw new Error(keyData.message || '推播後台尚未完成設定。');
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlToBytes(keyData.publicKey)
+        });
+      }
+      const response = await fetch('api/subscribe', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(subscription.toJSON())
+      });
+      if (!response.ok) throw new Error('裝置訂閱失敗，請稍後再試。');
     }
 
     async function showTestNotification() {

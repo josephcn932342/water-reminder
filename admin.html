@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#8bd7f4" />
+  <title>喝水提醒後台</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;padding:24px 16px;font-family:"PingFang TC","Microsoft JhengHei",sans-serif;color:#173e50;background:linear-gradient(145deg,#dff6ff,#8bd7f4)}
+    main{width:min(560px,100%);margin:auto;padding:26px;border:1px solid #ffffffaa;border-radius:28px;background:#f8fdffff;box-shadow:0 24px 70px #24566e33}h1{margin:0 0 8px;font-size:26px}.sub{margin:0 0 22px;color:#62808d;font-size:13px}
+    label{display:block;margin:18px 0 8px;font-size:13px;font-weight:700}.password-row,.time-row{display:flex;gap:8px}input,button{font:inherit}input[type=password],input[type=time]{min-width:0;flex:1;height:46px;padding:0 13px;border:1px solid #b7d8e5;border-radius:14px;background:white}
+    button{min-height:44px;padding:9px 15px;border:0;border-radius:14px;color:white;background:#258fbd;font-weight:700;cursor:pointer}.secondary{color:#21647e;background:#e2f4fa}.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.day{position:relative}.day input{position:absolute;opacity:0}.day span{display:grid;height:39px;place-items:center;border-radius:12px;background:#e8f5fa;font-size:12px}.day input:checked+span{color:white;background:#258fbd}
+    #times{display:flex;flex-wrap:wrap;gap:8px}.chip{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:99px;background:#e8f5fa;font-size:13px}.chip button{min-height:0;padding:0;color:#507281;background:transparent;font-size:18px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}.status{min-height:22px;margin:14px 0 0;color:#557481;font-size:12px;line-height:1.5}.switch{display:flex;align-items:center;gap:10px}.switch input{width:20px;height:20px}@media(max-width:420px){.actions{grid-template-columns:1fr}.days{gap:3px}.day span{font-size:11px}}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>喝水提醒後台</h1>
+    <p class="sub">設定會以台灣時間自動發送到已訂閱的裝置。</p>
+    <label for="password">後台密碼</label>
+    <div class="password-row"><input id="password" type="password" autocomplete="current-password" placeholder="輸入 Cloudflare 後台密碼" /><button id="login">登入</button></div>
+    <section id="settings" hidden>
+      <label class="switch"><input id="enabled" type="checkbox" />啟用自動提醒</label>
+      <label>提醒星期</label>
+      <div class="days" id="days"></div>
+      <label for="newTime">提醒時間</label>
+      <div class="time-row"><input id="newTime" type="time" value="09:30" /><button id="addTime" class="secondary">加入</button></div>
+      <div id="times" style="margin-top:10px"></div>
+      <div class="actions"><button id="save">儲存設定</button><button id="test" class="secondary">傳送測試</button></div>
+      <p class="status" id="deviceCount"></p>
+    </section>
+    <p class="status" id="status"></p>
+  </main>
+  <script>
+    const names=['日','一','二','三','四','五','六'];
+    const days=document.querySelector('#days');const times=document.querySelector('#times');const status=document.querySelector('#status');const settings=document.querySelector('#settings');
+    let password='';let currentTimes=[];
+    names.forEach((name,index)=>{days.insertAdjacentHTML('beforeend',`<label class="day"><input type="checkbox" value="${index}"><span>${name}</span></label>`)});
+    function headers(){return {'content-type':'application/json',authorization:`Bearer ${password}`}}
+    function renderTimes(){times.innerHTML='';currentTimes.sort().forEach(time=>{const chip=document.createElement('span');chip.className='chip';chip.innerHTML=`${time}<button type="button" aria-label="刪除 ${time}">×</button>`;chip.querySelector('button').onclick=()=>{currentTimes=currentTimes.filter(item=>item!==time);renderTimes()};times.appendChild(chip)})}
+    document.querySelector('#login').onclick=async()=>{password=document.querySelector('#password').value;status.textContent='讀取設定中…';const response=await fetch('/api/admin/config',{headers:headers()});const data=await response.json();if(!response.ok){status.textContent=data.message||'無法登入';return}document.querySelector('#enabled').checked=data.config.enabled;[...days.querySelectorAll('input')].forEach(input=>input.checked=data.config.days.includes(Number(input.value)));currentTimes=[...data.config.times];renderTimes();document.querySelector('#deviceCount').textContent=`目前已訂閱 ${data.devices} 個裝置`;settings.hidden=false;status.textContent='已登入'};
+    document.querySelector('#addTime').onclick=()=>{const value=document.querySelector('#newTime').value;if(value&&!currentTimes.includes(value)){currentTimes.push(value);renderTimes()}};
+    document.querySelector('#save').onclick=async()=>{const config={enabled:document.querySelector('#enabled').checked,days:[...days.querySelectorAll('input:checked')].map(input=>Number(input.value)),times:currentTimes};const response=await fetch('/api/admin/config',{method:'PUT',headers:headers(),body:JSON.stringify(config)});const data=await response.json();status.textContent=response.ok?'設定已儲存 ✓':data.message};
+    document.querySelector('#test').onclick=async()=>{status.textContent='正在傳送…';const response=await fetch('/api/admin/test',{method:'POST',headers:headers()});const data=await response.json();status.textContent=response.ok?`已送到 ${data.sent} 個裝置`:data.message};
+  </script>
+</body>
+</html>
