@@ -437,6 +437,8 @@
 
       if (!next) return;
 
+      photo.getAnimations().forEach((animation) => animation.cancel());
+
       const applyPhoto = () => {
         currentPhoto = next;
         photo.onload = () => {
@@ -459,10 +461,12 @@
         return;
       }
 
-      photo.animate([{ opacity: 1 }, { opacity: 0 }], {
+      const fadeOut = photo.animate([{ opacity: 1 }, { opacity: 0 }], {
         duration: 240, easing: 'ease-in', fill: 'forwards'
-      }).finished.then(() => {
+      });
+      fadeOut.finished.then(() => {
         photo.style.opacity = '0';
+        fadeOut.cancel();
         applyPhoto();
       });
     }
