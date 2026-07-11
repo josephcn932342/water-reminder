@@ -440,7 +440,11 @@
 
     function changePhoto(animate = true) {
       const choices = photoLibrary.filter((item) => item.src !== currentPhoto.src);
-      const next = choices[Math.floor(Math.random() * choices.length)];
+      const next = choices.length
+        ? choices[Math.floor(Math.random() * choices.length)]
+        : photoLibrary[0];
+
+      if (!next) return;
 
       const applyPhoto = () => {
         currentPhoto = next;

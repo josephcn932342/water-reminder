@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hydration-reminder-v6';
+const CACHE_NAME = 'hydration-reminder-v7';
 const APP_SHELL = [
   './',
   './index.html',

@@ -43,7 +43,11 @@ async function getGallery(env) {
   const photos = (await Promise.all(listed.keys.map(({ name }) => env.REMINDER_KV.get(name, 'json')))).filter(Boolean);
   const order = await env.REMINDER_KV.get('gallery:order', 'json') || [];
   const rank = new Map(order.map((id, index) => [id, index]));
-  return photos.sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER) || a.createdAt.localeCompare(b.createdAt));
+  return photos.sort((a, b) => {
+    const aRank = rank.has(a.id) ? rank.get(a.id) + 1 : 0;
+    const bRank = rank.has(b.id) ? rank.get(b.id) + 1 : 0;
+    return aRank - bRank || b.createdAt.localeCompare(a.createdAt);
+  });
 }
 
 function safePosition(value) {
