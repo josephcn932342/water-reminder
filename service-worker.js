@@ -46,7 +46,7 @@ self.addEventListener('push', (event) => {
     icon: 'icons/water-drop.svg',
     badge: 'icons/water-drop.svg',
     tag: 'hydration-reminder',
-    renotify: false,
+    renotify: true,
     data: { url: message.url }
   }));
 });
